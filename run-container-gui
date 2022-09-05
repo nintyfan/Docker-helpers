@@ -1,0 +1,15 @@
+#!/bin/bash
+
+while ! systemctl status docker; do
+   xmessage "Docker daemon not running. Provide password to ran it"
+   systemctl --no-pager start docker 2>&1 > /dev/null
+done
+
+
+docker run --rm -e XDG_RUNTIME_DIR=/tmp -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY "$@" 
+
+
+if [[ `docker ps -q | wc -l` -eq 0 ]]; then
+   xmessage "There is no docker images. Will stop docker now"
+   systemctl stop docker
+fi
