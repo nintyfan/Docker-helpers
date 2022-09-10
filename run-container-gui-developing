@@ -1,3 +1,4 @@
 #!/bin/bash
 
-run-container-gui -it -v "$PWD":/src "$@" su $USER -c '/bin/bash -c "cd /src; $SHELL"' 
+export run_container_gui_message="To go into source type cd /src"
+run-container-gui -it -v "$PWD":/src "$@" su slawomir -c '/bin/bash -c "cd /src; $SHELL"' 

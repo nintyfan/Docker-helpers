@@ -6,10 +6,41 @@ while ! systemctl status docker; do
 done
 
 
-docker run --rm -e DISPLAY=$DISPLAY -e XAUTHORITY=$XAUTHORITY -e XDG_RUNTIME_DIR=/tmp -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY "$@" 
+show_message()
+{
+   if [[ "$message_type" == "all" ]] || [[ "$message_type" != "gui" ]]; then 
+       echo "$@"
+   fi
+   
+   if [[ "$message_type" == "all" ]] || [[ "$message_type" != "console" ]]; then 
+      xmessage "$@" &
+   fi
+}
+
+show_message_force_user_seen()
+{
+   if [[ "$message_type" == "all" ]] || [[ "$message_type" != "gui" ]]; then 
+      echo "$@"
+      fi
+      
+      if [[ "$message_type" == "all" ]] || [[ "$message_type" != "console" ]]; then 
+         xmessage "$@" 
+         fi
+}
+
+show_message running...
+show_message docker run -d -e XDG_RUNTIME_DIR=/tmp -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY "$@"
+cid=`docker run -d -e XDG_RUNTIME_DIR=/tmp -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY "$@"`
+show_message_force_user_seen now type \"docker exec -ti $cid /bin/bash\" to login as root or  \"docker exec -ti $cid su $USER\"
+if [[ "$run_container_gui_message" != '' ]]; then show_message_force_user_seen $run_container_gui_message; fi
+
+( show_message_force_user_seen to end work click ok; docker stop $cid ) &
+
+docker wait $cid
+xdg-terminal "/bin/bash -c \"while read -p Remove\ killed\ container\ or\ commit\ it?\ \\\"[Y|N|C]\\\" answer; do answer=\${answer%$'\n'};  if [[ \\\""\$answer"\\\" == 'C' ]]; then  while ! read -p type\ tag tag; do echo Bad; done; docker commit $cid \\\"\$tag\\\"; exit; fi;  if [[ \\\""\$answer"\\\" == 'Y' ]]; then docker rm  $cid; exit;  fi; if  [[ \\\""\$answer"\\\" == 'N' ]]; then exit; fi; echo Bad response: \\\""\$answer"\\\"; done\""  
 
 
 if [[ `docker ps -q | wc -l` -eq 0 ]]; then
-   xmessage "There is no docker images. Will stop docker now"
+   show_message_force_user_seen "There is no docker images. Will stop docker now"
    systemctl stop docker
 fi
