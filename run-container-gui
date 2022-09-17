@@ -28,16 +28,67 @@ show_message_force_user_seen()
          fi
 }
 
+show_message_with_options()
+{
+   
+   options=$1
+   shift
+   if [[ "$message_type" != "" ]] && [[ "$message_type" != "gui" ]] && [[ "$message_type" != "all" ]]; then 
+      
+        while read -p "$@" answer; do answer=${answer%$\n}; answer_number=0; for a in `echo $options | tr -d ','`; do found=false; if [[ "$a" == "$answer" ]]; then found=true; break; fi; answer_number=$(( $answer_number + 1 )); done; if [[ $found == "true" ]]; then break; fi; done
+           
+        return $answer_number
+         
+   else 
+      xmessage -buttons "$options" "$@"
+      return $(( $? - 100 ))
+   fi
+}
+
+resultof()
+{
+   eval "$@"
+   echo $?
+}
+
 show_message running...
 show_message docker run -d -e XDG_RUNTIME_DIR=/tmp -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY "$@"
 cid=`docker run -d -e XDG_RUNTIME_DIR=/tmp -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY "$@"`
-show_message_force_user_seen now type \"docker exec -ti $cid /bin/bash\" to login as root or  \"docker exec -ti $cid su $USER\"
-if [[ "$run_container_gui_message" != '' ]]; then show_message_force_user_seen $run_container_gui_message; fi
 
+result="None"
+while [[ "$result" != "3" ]]; do
+
+   result=`resultof show_message_with_options "\"User Shell\",\"Root Shell\",Done" What to do now?`
+   
+   if [[ "$result" == "2" ]]; then
+      xdg-terminal "docker exec -ti $cid /bin/bash" &
+   elif [[ "$result" == "1" ]]; then
+      xdg-terminal "docker exec -ti $cid su $USER" &
+   fi
+done
+#show_message_force_user_seen now type \"docker exec -ti $cid /bin/bash\" to login as root or  \"docker exec -ti $cid su $USER\"
+if [[ "$run_container_gui_message" != '' ]]; then show_message_force_user_seen $run_container_gui_message; fi
+   echo 1
+   echo \"$result\"
+   echo 2
+   
 ( show_message_force_user_seen to end work click ok; docker stop $cid ) &
 
 docker wait $cid
-xdg-terminal "/bin/bash -c \"while read -p Remove\ killed\ container\ or\ commit\ it?\ \\\"[Y|N|C]\\\" answer; do answer=\${answer%$'\n'};  if [[ \\\""\$answer"\\\" == 'C' ]]; then  while ! read -p type\ tag tag; do echo Bad; done; docker commit $cid \\\"\$tag\\\"; exit; fi;  if [[ \\\""\$answer"\\\" == 'Y' ]]; then docker rm  $cid; exit;  fi; if  [[ \\\""\$answer"\\\" == 'N' ]]; then exit; fi; echo Bad response: \\\""\$answer"\\\"; done\""  
+
+result=`resultof show_message_with_options "Yes,No,Commit" Remove killed container or commit it\?`
+
+if [[ $result -eq 1 ]]; then
+   docker rm $cid
+elif [[ $result -eq 2 ]]; then
+  show_message Did no removing
+elif [[ $result -eq 3 ]]; then
+   xdg-terminal "/bin/bash -c \"while ! read -p type\\ tag tag; do echo Bad; done; docker commit $cid "\$tag";\""
+   #xdg-terminal "/bin/bash -c \"while ! read -p type\\ tag tag; do echo Bad; done; docker commit $cid \\\"\$tag\\\"\";\""
+#  xdg-terminal "/bin/bash -c \"while ! read -p type\\ tag tag; do echo Bad; done; docker commit $cid \\\"\$tag\\\";"  
+fi
+
+#xdg-terminal "/bin/bash -c \"while read -p Remove\ killed\ container\ or\ commit\ it?\ \\\"[Y|N|C]\\\" answer; do answer=\${answer%$'\n'};  if [[ \\\""\$answer"\\\" == 'C' ]]; then  while ! read -p type\ tag tag; do echo Bad; done; docker commit $cid \\\"\$tag\\\"; exit; fi;  if [[ \\\""\$answer"\\\" == 'Y' ]]; then docker rm  $cid; exit;  fi; if  [[ \\\""\$answer"\\\" == 'N' ]]; then exit; fi; echo Bad response: \\\""\$answer"\\\"; done\""  
 
 
 if [[ `docker ps -q | wc -l` -eq 0 ]]; then
