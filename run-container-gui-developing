@@ -1,4 +1,5 @@
 #!/bin/bash
 
-export run_container_gui_message="To go into source type cd /src"
-run-container-gui  -v "$PWD":/src "$@"
+export run_container_gui_message_user_shell="To go into source type cd /src"
+export run_container_gui_message_root_shell="Do not forget about commit"
+run-container-gui -it -v "$PWD":/src "$@" su slawomir -c '/bin/bash -c "cd /src; $SHELL"' 

@@ -8,12 +8,26 @@ done
 
 show_message()
 {
-   if [[ "$message_type" == "all" ]] || [[ "$message_type" != "gui" ]]; then 
-       echo "$@"
-   fi
    
-   if [[ "$message_type" == "all" ]] || [[ "$message_type" != "console" ]]; then 
-      xmessage "$@" &
+   if [[ "z$message_type" == "z" ]] || [[ "$message_type" == "all" ]]; then 
+      echo "$@"
+      if [[ "$WAIT_TO_RESPONSE" == TRUE ]]; then
+         xmessage "$@"
+      else
+         xmessage "$@" &
+      fi
+   elif [[ "$message_type" == "console" ]]; then 
+       echo "$@"
+       if [[ "$WAIT_TO_RESPONSE" == TRUE ]]; then
+          echo "Type enter to procedd"
+          read mesh
+       fi
+   elif [[ "$message_type" == "gui" ]]; then 
+      if [[ "$WAIT_TO_RESPONSE" == TRUE ]]; then
+         xmessage "$@"
+      else
+         xmessage "$@" &
+      fi
    fi
 }
 
@@ -35,7 +49,7 @@ show_message_with_options()
    shift
    if [[ "$message_type" != "" ]] && [[ "$message_type" != "gui" ]] && [[ "$message_type" != "all" ]]; then 
       
-        while read -p "$@" answer; do answer=${answer%$\n}; answer_number=0; for a in `echo $options | tr -d ','`; do found=false; if [[ "$a" == "$answer" ]]; then found=true; break; fi; answer_number=$(( $answer_number + 1 )); done; if [[ $found == "true" ]]; then break; fi; done
+        while read -p "$*"\ "[$options]" answer; do answer=${answer%$\n}; answer_number=0; for a in `echo $options |  tr  ',' ' '`; do found=false; echo $a; if [[ "$a" == "$answer" ]]; then found=true; break; fi; answer_number=$(( $answer_number + 1 )); done; if [[ $found == "true" ]]; then break; fi; done
            
         return $answer_number
          
@@ -56,14 +70,16 @@ show_message docker run -d -e XDG_RUNTIME_DIR=/tmp -e WAYLAND_DISPLAY=$WAYLAND_D
 cid=`docker run -d -e XDG_RUNTIME_DIR=/tmp -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY "$@"`
 
 result="None"
+root_shell_opened=False
 while [[ "$result" != "3" ]]; do
 
    result=`resultof show_message_with_options "\"User Shell\",\"Root Shell\",Done" What to do now?`
    
    if [[ "$result" == "2" ]]; then
-      xdg-terminal "docker exec -ti $cid /bin/bash" &
+      root_shell_opened=True
+      xdg-terminal "docker exec -ti $cid /bin/bash -c \"echo $run_container_gui_message_root_shell; su root\"" &
    elif [[ "$result" == "1" ]]; then
-      xdg-terminal "docker exec -ti $cid su $USER" &
+      xdg-terminal "docker exec -ti $cid /bin/bash -c \"echo $run_container_gui_message_user_shell;su $USER\"" &
    fi
 done
 #show_message_force_user_seen now type \"docker exec -ti $cid /bin/bash\" to login as root or  \"docker exec -ti $cid su $USER\"
@@ -75,6 +91,10 @@ if [[ "$run_container_gui_message" != '' ]]; then show_message_force_user_seen $
 ( show_message_force_user_seen to end work click ok; docker stop $cid ) &
 
 docker wait $cid
+
+if [[ "$root_shell_opened" == "True" ]]; then
+   WAIT_TO_RESPONSE=TRUE show_message "You logged into root shell. Think about commit"
+fi
 
 result=`resultof show_message_with_options "Yes,No,Commit" Remove killed container or commit it\?`
 
