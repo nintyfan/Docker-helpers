@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if which tao-dialog; then
+	alias xmessage="tao-dialog xmessage"
+fi
+
 while ! systemctl status docker; do
    xmessage "Docker daemon not running. Provide password to ran it"
    systemctl --no-pager start docker 2>&1 > /dev/null
