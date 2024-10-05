@@ -1,8 +1,13 @@
 #!/bin/bash
 
-if which tao-dialog; then
-	alias xmessage="tao-dialog xmessage"
+function xmessage
+{
+if which tao-dialog &> /dev/null; then
+	tao-dialog xmessage "$@" &> /dev/null
+else
+	command xmessage "$@"
 fi
+}
 
 while ! systemctl status docker; do
    xmessage "Docker daemon not running. Provide password to ran it"
