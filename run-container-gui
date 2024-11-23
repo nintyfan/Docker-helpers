@@ -4,9 +4,16 @@ function xmessage
 {
 if which tao-dialog &> /dev/null; then
 	tao-dialog xmessage "$@" &> /dev/null
+	result=$?
+	if [[ $result -eq 1 ]]; then
+	  command xmessage "$@"
+	  result=$?
+	fi
 else
 	command xmessage "$@"
+	result=$?
 fi
+return $result
 }
 
 while ! systemctl status docker; do
@@ -78,8 +85,10 @@ show_message running...
 show_message docker run -d -e XDG_RUNTIME_DIR=/tmp -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY "$@"
 cid=`docker run -d -e XDG_RUNTIME_DIR=/tmp -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY "$@"`
 
+declare done=false
 result="None"
 root_shell_opened=False
+while [[ x"$done" == x"false" ]]; do
 while [[ "$result" != "3" ]]; do
 
    result=`resultof show_message_with_options "\"User Shell\",\"Root Shell\",Done" What to do now?`
@@ -97,7 +106,13 @@ if [[ "$run_container_gui_message" != '' ]]; then show_message_force_user_seen $
    echo \"$result\"
    echo 2
    
-( show_message_force_user_seen to end work click ok; docker stop $cid ) &
+  result=`resultof show_message_with_options "ok,back" to end work click ok`
+  if [[ x"$result" == x"1" ]]; then
+	  done=true
+  fi
+done
+
+docker stop $cid
 
 docker wait $cid
 
